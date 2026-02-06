@@ -54,13 +54,18 @@ function buildMenuItems(state, lang, isSuperadmin, isHome) {
   return `
     ${hasPerm("matches.view") ? `<button class="nav-link" data-action="go" data-go="/discover">${t(lang, "navDiscover")}</button>` : ""}
     ${hasPerm("matches.view") ? `<button class="nav-link" data-action="go" data-go="/matches">${t(lang, "navFriends")}</button>` : ""}
-    ${hasPerm("users.edit") || isSuperadmin ? `<button class="nav-link" data-action="go" data-go="/profile">${t(lang, "navProfile")}</button>` : ""}
     ${hasPerm("users.view") || isSuperadmin ? `<button class="nav-link" data-action="go" data-go="/users">${t(lang, "usersTitle")}</button>` : ""}
     ${hasPerm("matches.manage") || isSuperadmin ? `<button class="nav-link" data-action="go" data-go="/matches-manage">${t(lang, "matchesManageTitle")}</button>` : ""}
     ${hasPerm("content.moderate") || isSuperadmin ? `<button class="nav-link" data-action="go" data-go="/content-moderate">${t(lang, "contentModerateTitle")}</button>` : ""}
     ${hasPerm("reports.view") || isSuperadmin ? `<button class="nav-link" data-action="go" data-go="/reports">${t(lang, "reportsTitle")}</button>` : ""}
-    ${hasPerm("settings.manage") || isSuperadmin ? `<button class="nav-link" data-action="go" data-go="/settings">${t(lang, "settingsTitle")}</button>` : ""}
     ${hasPerm("admins.manage") || isSuperadmin ? `<button class="nav-link" data-action="go" data-go="/admin">${t(lang, "navAdmin")}</button>` : ""}
+    ${hasPerm("users.edit") || isSuperadmin ? `
+      <button class="nav-link avatar-btn" data-action="go" data-go="/profile">
+        ${state.me && state.me.avatarUrl
+          ? `<img src="${state.me.avatarUrl}" alt="avatar" />`
+          : `<span>${(state.me && state.me.name ? state.me.name[0] : "U").toUpperCase()}</span>`}
+      </button>
+    ` : ""}
     ${isHome ? "" : `<button class="nav-link" data-action="signOut">${t(lang, "navSignOut")}</button>`}
   `;
 }

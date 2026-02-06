@@ -56,6 +56,7 @@ import { matchesManagePage } from "../pages/matchesManage.js";
 import { contentModeratePage } from "../pages/contentModerate.js";
 import { reportsPage } from "../pages/reports.js";
 import { settingsPage } from "../pages/settings.js";
+import { userSettingsPage } from "../pages/userSettings.js";
 
 const pages = {
   "/": homePage,
@@ -70,6 +71,7 @@ const pages = {
   "/content-moderate": contentModeratePage,
   "/reports": reportsPage,
   "/settings": settingsPage,
+  "/settings-user": userSettingsPage,
   "/onboarding": onboardingPage,
   "/discover": discoverPage,
   "/matches": matchesPage,
@@ -109,6 +111,7 @@ const formHandlers = {
     }
     updateProfile({
       name: String(formData.get("name") || "").trim(),
+      avatarUrl: String(formData.get("avatarUrl") || "").trim(),
       username: String(formData.get("username") || "").trim(),
       city: String(formData.get("city") || "").trim(),
       bio: String(formData.get("bio") || "").trim(),
@@ -121,6 +124,14 @@ const formHandlers = {
       contact: {
         email,
         instagram,
+      },
+      settings: {
+        showCity: formData.get("settings.showCity") === "on",
+        showInterests: formData.get("settings.showInterests") === "on",
+        contactMutual: formData.get("settings.contactMutual") === "on",
+        notifyMatches: formData.get("settings.notifyMatches") === "on",
+        notifyMessages: formData.get("settings.notifyMessages") === "on",
+        notifyContact: formData.get("settings.notifyContact") === "on",
       },
     });
   },
@@ -193,6 +204,26 @@ const formHandlers = {
       (role) => formData.get(`visibleTo:${role}`) === "on"
     );
     if (menuId && submenuId) updateAdminSubmenuSettings(menuId, submenuId, { active, visibleTo });
+  },
+  userSettings: (form) => {
+    const formData = new FormData(form);
+    const nextLang = String(formData.get("settings.language") || "");
+    updateProfile({
+      settings: {
+        showOnline: formData.get("settings.showOnline") === "on",
+        showAge: formData.get("settings.showAge") === "on",
+        showCity: formData.get("settings.showCity") === "on",
+        showInterests: formData.get("settings.showInterests") === "on",
+        contactMutual: formData.get("settings.contactMutual") === "on",
+        notifyMatches: formData.get("settings.notifyMatches") === "on",
+        notifyMessages: formData.get("settings.notifyMessages") === "on",
+        notifyContact: formData.get("settings.notifyContact") === "on",
+        compactMode: formData.get("settings.compactMode") === "on",
+        largeText: formData.get("settings.largeText") === "on",
+        language: nextLang,
+      },
+    });
+    if (nextLang) setLanguage(nextLang);
   },
   permissions: (form) => {
     const formData = new FormData(form);

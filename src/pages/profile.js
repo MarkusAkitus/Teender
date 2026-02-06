@@ -7,11 +7,20 @@ export function profilePage(state) {
   return `
     <section class="page">
       <div class="panel">
-        <h2>${t(lang, "profileTitle")}</h2>
+        <div class="settings-header">
+          <h2>${t(lang, "profileTitle")}</h2>
+          <button class="gear-button" data-action="go" data-go="/settings-user" title="${t(lang, "settingsTitle")}">
+            ⚙
+          </button>
+        </div>
         <form class="form" data-form="profile">
           <label>
             ${t(lang, "formName")}
             <input name="name" type="text" value="${me.name || ""}" required />
+          </label>
+          <label>
+            ${t(lang, "profileAvatar")}
+            <input name="avatarUrl" type="text" placeholder="https://..." value="${me.avatarUrl || ""}" />
           </label>
           <label>
             ${t(lang, "signInUser")}

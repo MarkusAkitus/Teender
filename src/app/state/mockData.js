@@ -120,6 +120,6 @@ export const seedUsers = [
     password: "Marc1701#",
     role: "admin",
     name: "Marc",
-    permissions: [],
+    permissions: ["users.view", "users.edit", "matches.view", "settings.manage"],
   },
 ];

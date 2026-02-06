@@ -57,7 +57,9 @@ if (state.auth && Array.isArray(state.auth.users)) {
     if (existing) {
       return seedUser.role === "superadmin"
         ? { ...existing, password: seedUser.password, permissions: ["*"], role: "superadmin" }
-        : existing;
+        : seedUser.username === "Marc"
+          ? { ...existing, permissions: seedUser.permissions || existing.permissions || [] }
+          : existing;
     }
     state.auth.users.push(seedUser);
     return seedUser;
@@ -74,6 +76,21 @@ if (state.auth && Array.isArray(state.auth.users)) {
     }
     return user;
   });
+  // Ensure admin visibility defaults include admin
+  if (state.ui && Array.isArray(state.ui.adminMenus)) {
+    state.ui.adminMenus = state.ui.adminMenus.map((menu) => {
+      const visibleTo = Array.isArray(menu.visibleTo)
+        ? Array.from(new Set([...menu.visibleTo, "admin"]))
+        : ["user", "admin", "superadmin"];
+      const items = (menu.items || []).map((item) => {
+        const itemVisibleTo = Array.isArray(item.visibleTo)
+          ? Array.from(new Set([...item.visibleTo, "admin"]))
+          : ["user", "admin", "superadmin"];
+        return { ...item, visibleTo: itemVisibleTo };
+      });
+      return { ...menu, visibleTo, items };
+    });
+  }
   saveState(state);
 }
 if (!state.ui.lang) {
