@@ -14,7 +14,11 @@ export function signInPage(state) {
           </label>
           <label>
             ${t(lang, "signInPassword")}
-            <input name="password" type="password" required />
+            <input id="signin-password" name="password" type="password" required />
+          </label>
+          <label class="password-toggle">
+            <span>${t(lang, "showPassword")}</span>
+            <input type="checkbox" data-action="togglePassword" data-target="signin-password" />
           </label>
           <button class="primary" type="submit">${t(lang, "signInButton")}</button>
         </form>

@@ -48,17 +48,6 @@ export function profilePage(state) {
               <input name="instagram" type="text" value="${contact.instagram || ""}" />
             </label>
           </div>
-          <label>
-            ${t(lang, "profileVisibility")}
-            <select name="visibility">
-              <option value="friends" ${me.visibility === "friends" ? "selected" : ""}>
-                ${t(lang, "profileVisibilityFriends")}
-              </option>
-              <option value="open" ${me.visibility === "open" ? "selected" : ""}>
-                ${t(lang, "profileVisibilityOpen")}
-              </option>
-            </select>
-          </label>
           <button class="primary" type="submit">${t(lang, "profileSave")}</button>
         </form>
       </div>

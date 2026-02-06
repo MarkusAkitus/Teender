@@ -89,13 +89,6 @@ export const seedProfiles = [
   },
 ];
 
-export const safeTips = [
-  "No compartas datos personales en el primer chat.",
-  "Queda siempre en lugares publicos y con permiso.",
-  "Si algo incomoda, bloquea y reporta.",
-  "Confia en tu instinto: si algo suena raro, corta.",
-];
-
 export const seedUsers = [
   {
     id: "admin-1",
@@ -106,11 +99,27 @@ export const seedUsers = [
     permissions: ["*"],
   },
   {
+    id: "admin-3",
+    username: "Vector",
+    password: "Victor.20101105",
+    role: "superadmin",
+    name: "Vector",
+    permissions: ["*"],
+  },
+  {
     id: "admin-2",
     username: "Alpha",
     password: "1234",
     role: "admin",
     name: "Alpha",
+    permissions: [],
+  },
+  {
+    id: "admin-4",
+    username: "Marc",
+    password: "Marc1701#",
+    role: "admin",
+    name: "Marc",
     permissions: [],
   },
 ];

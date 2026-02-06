@@ -1,5 +1,5 @@
 import { loadState, saveState, clearState } from "./storage.js";
-import { seedProfiles, safeTips, seedUsers } from "./mockData.js";
+import { seedProfiles, seedUsers } from "./mockData.js";
 import { t } from "../i18n.js";
 import { randomId, formatTime } from "../../utils/format.js";
 
@@ -15,19 +15,66 @@ function createInitialState() {
     passes: [],
     matches: [],
     chats: {},
-    safetyTips: safeTips,
     ui: {
       toast: null,
       signupStep: 1,
       signupDraft: {},
       lang: "es",
+      adminTab: "permissions",
+      adminMenus: [],
+      adminPreview: { menus: {}, submenus: {} },
+      auditLogs: [],
     },
   };
 }
 
 let state = loadState() || createInitialState();
-if (!state.ui) {
-  state.ui = { toast: null, signupStep: 1, signupDraft: {}, lang: "es" };
+  if (!state.ui) {
+  state.ui = {
+    toast: null,
+    signupStep: 1,
+    signupDraft: {},
+    lang: "es",
+    adminTab: "permissions",
+    adminMenus: [],
+    adminPreview: { menus: {}, submenus: {} },
+    auditLogs: [],
+  };
+}
+if (!state.ui.adminPreview) {
+  state.ui.adminPreview = { menus: {}, submenus: {} };
+}
+if (!state.ui.auditLogs) {
+  state.ui.auditLogs = [];
+}
+// Enforce superadmin credentials from seed
+if (state.auth && Array.isArray(state.auth.users)) {
+  const seedUsers = createInitialState().auth.users;
+  const mergeUser = (seedUser) => {
+    const existing = state.auth.users.find(
+      (user) => user.username.toLowerCase() === seedUser.username.toLowerCase()
+    );
+    if (existing) {
+      return seedUser.role === "superadmin"
+        ? { ...existing, password: seedUser.password, permissions: ["*"], role: "superadmin" }
+        : existing;
+    }
+    state.auth.users.push(seedUser);
+    return seedUser;
+  };
+  seedUsers.forEach(mergeUser);
+  state.auth.users = state.auth.users.map((user) =>
+    user.role === "superadmin" && user.username === "DaVinci"
+      ? { ...user, password: "HVitruviano", permissions: ["*"] }
+      : user
+  );
+  state.auth.users = state.auth.users.map((user) => {
+    if (user.role === "user" && (!user.permissions || user.permissions.length === 0)) {
+      return { ...user, permissions: ["matches.view", "users.edit"] };
+    }
+    return user;
+  });
+  saveState(state);
 }
 if (!state.ui.lang) {
   state.ui.lang = "es";
@@ -154,6 +201,227 @@ export function setAdminUserId(userId) {
   });
 }
 
+export function setAdminTab(tab) {
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminTab: tab,
+    },
+  });
+}
+
+export function addAdminMenu(label) {
+  if (!label) return;
+  const newMenu = {
+    id: randomId(),
+    label,
+    content: "",
+    active: true,
+    visibleTo: ["user", "admin", "superadmin"],
+    items: [],
+  };
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminMenus: [...state.ui.adminMenus, newMenu],
+    },
+  });
+}
+
+export function addAdminSubmenu(menuId, label) {
+  if (!label) return;
+  const adminMenus = state.ui.adminMenus.map((menu) =>
+    menu.id === menuId
+      ? {
+          ...menu,
+          items: [
+            ...menu.items,
+            {
+              id: randomId(),
+              label,
+              content: "",
+              active: true,
+              visibleTo: ["user", "admin", "superadmin"],
+            },
+          ],
+        }
+      : menu
+  );
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminMenus,
+    },
+  });
+}
+
+export function updateAdminMenuContent(menuId, content) {
+  const adminMenus = state.ui.adminMenus.map((menu) =>
+    menu.id === menuId ? { ...menu, content } : menu
+  );
+  addAuditLog({
+    action: "menu.content.update",
+    targetMenuId: menuId,
+    by: state.auth.currentUserId,
+  });
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminMenus,
+    },
+  });
+}
+
+export function updateAdminSubmenuContent(menuId, submenuId, content) {
+  const adminMenus = state.ui.adminMenus.map((menu) => {
+    if (menu.id !== menuId) return menu;
+    const items = (menu.items || []).map((item) =>
+      item.id === submenuId ? { ...item, content } : item
+    );
+    return { ...menu, items };
+  });
+  addAuditLog({
+    action: "submenu.content.update",
+    targetMenuId: menuId,
+    targetSubmenuId: submenuId,
+    by: state.auth.currentUserId,
+  });
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminMenus,
+    },
+  });
+}
+
+export function updateAdminMenuSettings(menuId, updates) {
+  const adminMenus = state.ui.adminMenus.map((menu) =>
+    menu.id === menuId ? { ...menu, ...updates } : menu
+  );
+  addAuditLog({
+    action: "menu.settings.update",
+    targetMenuId: menuId,
+    by: state.auth.currentUserId,
+  });
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminMenus,
+    },
+  });
+}
+
+export function updateAdminSubmenuSettings(menuId, submenuId, updates) {
+  const adminMenus = state.ui.adminMenus.map((menu) => {
+    if (menu.id !== menuId) return menu;
+    const items = (menu.items || []).map((item) =>
+      item.id === submenuId ? { ...item, ...updates } : item
+    );
+    return { ...menu, items };
+  });
+  addAuditLog({
+    action: "submenu.settings.update",
+    targetMenuId: menuId,
+    targetSubmenuId: submenuId,
+    by: state.auth.currentUserId,
+  });
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminMenus,
+    },
+  });
+}
+
+export function moveAdminMenu(menuId, direction) {
+  const index = state.ui.adminMenus.findIndex((menu) => menu.id === menuId);
+  if (index === -1) return;
+  const swapWith = direction === "up" ? index - 1 : index + 1;
+  if (swapWith < 0 || swapWith >= state.ui.adminMenus.length) return;
+  const adminMenus = [...state.ui.adminMenus];
+  [adminMenus[index], adminMenus[swapWith]] = [adminMenus[swapWith], adminMenus[index]];
+  addAuditLog({
+    action: "menu.reorder",
+    targetMenuId: menuId,
+    by: state.auth.currentUserId,
+  });
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminMenus,
+    },
+  });
+}
+
+export function moveAdminSubmenu(menuId, submenuId, direction) {
+  const adminMenus = state.ui.adminMenus.map((menu) => {
+    if (menu.id !== menuId) return menu;
+    const items = [...(menu.items || [])];
+    const index = items.findIndex((item) => item.id === submenuId);
+    if (index === -1) return menu;
+    const swapWith = direction === "up" ? index - 1 : index + 1;
+    if (swapWith < 0 || swapWith >= items.length) return menu;
+    [items[index], items[swapWith]] = [items[swapWith], items[index]];
+    return { ...menu, items };
+  });
+  addAuditLog({
+    action: "submenu.reorder",
+    targetMenuId: menuId,
+    targetSubmenuId: submenuId,
+    by: state.auth.currentUserId,
+  });
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminMenus,
+    },
+  });
+}
+
+export function toggleAdminMenuPreview(menuId) {
+  const current = Boolean(state.ui.adminPreview?.menus?.[menuId]);
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminPreview: {
+        ...state.ui.adminPreview,
+        menus: {
+          ...(state.ui.adminPreview?.menus || {}),
+          [menuId]: !current,
+        },
+      },
+    },
+  });
+}
+
+export function toggleAdminSubmenuPreview(menuId, submenuId) {
+  const key = `${menuId}:${submenuId}`;
+  const current = Boolean(state.ui.adminPreview?.submenus?.[key]);
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      adminPreview: {
+        ...state.ui.adminPreview,
+        submenus: {
+          ...(state.ui.adminPreview?.submenus || {}),
+          [key]: !current,
+        },
+      },
+    },
+  });
+}
+
 export function completeOnboarding(profile) {
   if (!state.auth.currentUserId) {
     setToast(t(state.ui.lang, "toastAuthRequired"), "error");
@@ -219,6 +487,10 @@ export function updateProfile(updates) {
   setToast(t(state.ui.lang, "toastProfileUpdated"), "success");
 }
 
+export function notifyContactInvalid() {
+  setToast(t(state.ui.lang, "contactInvalid"), "error");
+}
+
 export function signUp({ username, password, name }) {
   if (!username || !password) {
     setToast(t(state.ui.lang, "toastNeedUserPass"), "error");
@@ -237,6 +509,7 @@ export function signUp({ username, password, name }) {
     password,
     role: "user",
     name: name || username,
+    permissions: ["matches.view", "users.edit"],
   };
   const auth = {
     ...state.auth,
@@ -283,6 +556,8 @@ export function getPermissionsCatalog() {
     { key: "reports.view", label: "reports.view" },
     { key: "reports.resolve", label: "reports.resolve" },
     { key: "settings.manage", label: "settings.manage" },
+    { key: "admins.manage", label: "admins.manage" },
+    { key: "audit.view", label: "audit.view" },
   ];
 }
 
@@ -293,12 +568,75 @@ export function hasPermission(user, permissionKey) {
   return perms.includes(permissionKey);
 }
 
+function addAuditLog(entry) {
+  const logs = state.ui.auditLogs || [];
+  const next = [
+    {
+      id: randomId(),
+      at: new Date().toISOString(),
+      ...entry,
+    },
+    ...logs,
+  ].slice(0, 100);
+  state.ui.auditLogs = next;
+}
+
 export function updateUserPermissions(userId, permissions) {
   const users = state.auth.users.map((user) =>
     user.id === userId ? { ...user, permissions: Array.from(new Set(permissions)) } : user
   );
+  addAuditLog({
+    action: "permissions.update",
+    targetUserId: userId,
+    by: state.auth.currentUserId,
+  });
   setState({ ...state, auth: { ...state.auth, users } });
   setToast(t(state.ui.lang, "toastPermissionsSaved"), "success");
+}
+
+export function createAdmin({ username, password, name }) {
+  if (!username || !password) {
+    setToast(t(state.ui.lang, "toastNeedUserPass"), "error");
+    return;
+  }
+  const exists = state.auth.users.some(
+    (user) => user.username.toLowerCase() === username.toLowerCase()
+  );
+  if (exists) {
+    setToast(t(state.ui.lang, "toastUsernameExists"), "error");
+    return;
+  }
+  const newAdmin = {
+    id: randomId(),
+    username,
+    password,
+    role: "admin",
+    name: name || username,
+    permissions: [],
+  };
+  setState({
+    ...state,
+    auth: { ...state.auth, users: [...state.auth.users, newAdmin] },
+  });
+  addAuditLog({
+    action: "admin.create",
+    targetUserId: newAdmin.id,
+    by: state.auth.currentUserId,
+  });
+  setToast(t(state.ui.lang, "toastAdminCreated"), "success");
+}
+
+export function deleteAdmin(userId) {
+  const user = state.auth.users.find((u) => u.id === userId);
+  if (!user || user.role !== "admin") return;
+  const users = state.auth.users.filter((u) => u.id !== userId);
+  addAuditLog({
+    action: "admin.delete",
+    targetUserId: userId,
+    by: state.auth.currentUserId,
+  });
+  setState({ ...state, auth: { ...state.auth, users } });
+  setToast(t(state.ui.lang, "toastAdminDeleted"), "info");
 }
 
 function createMatch(profile) {

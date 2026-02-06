@@ -29,7 +29,11 @@ export function signUpPage(state) {
             </label>
             <label>
               ${t(lang, "signUpPassword")}
-              <input name="password" type="password" data-required="true" value="${draft.password || ""}" />
+              <input id="signup-password" name="password" type="password" data-required="true" value="${draft.password || ""}" />
+            </label>
+            <label class="password-toggle">
+              <span>${t(lang, "showPassword")}</span>
+              <input type="checkbox" data-action="togglePassword" data-target="signup-password" />
             </label>
           `
               : ""

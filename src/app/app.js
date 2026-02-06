@@ -8,6 +8,7 @@ import {
   sendMessage,
   sendIntroMessage,
   updateProfile,
+  notifyContactInvalid,
   signUp,
   signIn,
   signOut,
@@ -18,6 +19,20 @@ import {
   clearSignupDraft,
   setLanguage,
   setAdminUserId,
+  setAdminTab,
+  addAdminMenu,
+  addAdminSubmenu,
+  updateAdminMenuContent,
+  updateAdminSubmenuContent,
+  updateAdminMenuSettings,
+  updateAdminSubmenuSettings,
+  moveAdminMenu,
+  moveAdminSubmenu,
+  toggleAdminMenuPreview,
+  toggleAdminSubmenuPreview,
+  createAdmin,
+  deleteAdmin,
+  hasPermission,
   getPermissionsCatalog,
   updateUserPermissions,
   resetState,
@@ -30,12 +45,17 @@ import { discoverPage } from "../pages/discover.js";
 import { matchesPage } from "../pages/matches.js";
 import { chatPage } from "../pages/chat.js";
 import { profilePage } from "../pages/profile.js";
-import { safetyPage } from "../pages/safety.js";
 import { signInPage } from "../pages/signIn.js";
 import { signUpPage } from "../pages/signUp.js";
 import { demoPage } from "../pages/demo.js";
 import { t } from "./i18n.js";
 import { adminPage } from "../pages/admin.js";
+import { menuPage } from "../pages/menu.js";
+import { usersPage } from "../pages/users.js";
+import { matchesManagePage } from "../pages/matchesManage.js";
+import { contentModeratePage } from "../pages/contentModerate.js";
+import { reportsPage } from "../pages/reports.js";
+import { settingsPage } from "../pages/settings.js";
 
 const pages = {
   "/": homePage,
@@ -43,12 +63,18 @@ const pages = {
   "/signup": signUpPage,
   "/demo": demoPage,
   "/admin": adminPage,
+  "/menu/:menuId": menuPage,
+  "/menu/:menuId/:submenuId": menuPage,
+  "/users": usersPage,
+  "/matches-manage": matchesManagePage,
+  "/content-moderate": contentModeratePage,
+  "/reports": reportsPage,
+  "/settings": settingsPage,
   "/onboarding": onboardingPage,
   "/discover": discoverPage,
   "/matches": matchesPage,
   "/chat/:id": chatPage,
   "/profile": profilePage,
-  "/safety": safetyPage,
 };
 
 const appRootId = "app";
@@ -73,6 +99,14 @@ const formHandlers = {
   },
   profile: (form) => {
     const formData = new FormData(form);
+    const email = String(formData.get("email") || "").trim();
+    const instagram = String(formData.get("instagram") || "").trim();
+    const emailOk = !email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    const instaOk = !instagram || /^@?[\w.]{2,30}$/.test(instagram);
+    if (!emailOk || !instaOk) {
+      notifyContactInvalid();
+      return;
+    }
     updateProfile({
       name: String(formData.get("name") || "").trim(),
       username: String(formData.get("username") || "").trim(),
@@ -84,10 +118,9 @@ const formHandlers = {
         .filter(Boolean)
         .slice(0, 8),
       vibe: String(formData.get("vibe") || "").trim(),
-      visibility: String(formData.get("visibility") || "friends"),
       contact: {
-        email: String(formData.get("email") || "").trim(),
-        instagram: String(formData.get("instagram") || "").trim(),
+        email,
+        instagram,
       },
     });
   },
@@ -106,6 +139,60 @@ const formHandlers = {
     if (!text || !matchId) return;
     sendIntroMessage(matchId, text);
     form.reset();
+  },
+  adminMenu: (form) => {
+    const formData = new FormData(form);
+    const label = String(formData.get("menuLabel") || "").trim();
+    addAdminMenu(label);
+    form.reset();
+  },
+  adminSubmenu: (form) => {
+    const formData = new FormData(form);
+    const menuId = String(formData.get("menuId") || "");
+    const label = String(formData.get("submenuLabel") || "").trim();
+    if (menuId) addAdminSubmenu(menuId, label);
+    form.reset();
+  },
+  adminMenuContent: (form) => {
+    const formData = new FormData(form);
+    const menuId = String(formData.get("menuId") || "");
+    const content = String(formData.get("content") || "");
+    if (menuId) updateAdminMenuContent(menuId, content);
+  },
+  adminSubmenuContent: (form) => {
+    const formData = new FormData(form);
+    const menuId = String(formData.get("menuId") || "");
+    const submenuId = String(formData.get("submenuId") || "");
+    const content = String(formData.get("content") || "");
+    if (menuId && submenuId) updateAdminSubmenuContent(menuId, submenuId, content);
+  },
+  createAdmin: (form) => {
+    const formData = new FormData(form);
+    createAdmin({
+      name: String(formData.get("name") || "").trim(),
+      username: String(formData.get("username") || "").trim(),
+      password: String(formData.get("password") || ""),
+    });
+    form.reset();
+  },
+  adminMenuSettings: (form) => {
+    const formData = new FormData(form);
+    const menuId = String(formData.get("menuId") || "");
+    const active = formData.get("active") === "on";
+    const visibleTo = ["user", "admin", "superadmin"].filter(
+      (role) => formData.get(`visibleTo:${role}`) === "on"
+    );
+    if (menuId) updateAdminMenuSettings(menuId, { active, visibleTo });
+  },
+  adminSubmenuSettings: (form) => {
+    const formData = new FormData(form);
+    const menuId = String(formData.get("menuId") || "");
+    const submenuId = String(formData.get("submenuId") || "");
+    const active = formData.get("active") === "on";
+    const visibleTo = ["user", "admin", "superadmin"].filter(
+      (role) => formData.get(`visibleTo:${role}`) === "on"
+    );
+    if (menuId && submenuId) updateAdminSubmenuSettings(menuId, submenuId, { active, visibleTo });
   },
   permissions: (form) => {
     const formData = new FormData(form);
@@ -207,20 +294,61 @@ const clickHandlers = {
       const shouldSignOut = window.confirm(t(state.ui.lang, "confirmSignOut"));
       if (shouldSignOut) {
         signOut();
-        navigate("/signin");
+        navigate("/");
         return;
       }
       return;
     }
     navigate(path);
   },
-  changeLang: (target) => {
-    const lang = target.value;
-    setLanguage(lang);
+  setLang: (target) => {
+    const lang = target.getAttribute("data-lang");
+    if (lang) setLanguage(lang);
   },
   adminUserChange: (target) => {
     const userId = target.value;
     setAdminUserId(userId);
+  },
+  adminTab: (target) => {
+    const tab = target.getAttribute("data-tab") || "permissions";
+    setAdminTab(tab);
+  },
+  toggleDropdown: (target) => {
+    const dropdown = target.closest(".dropdown");
+    if (!dropdown) return;
+    const isOpen = dropdown.classList.contains("open");
+    document.querySelectorAll(".dropdown.open").forEach((el) => el.classList.remove("open"));
+    if (!isOpen) dropdown.classList.add("open");
+  },
+  togglePassword: (target) => {
+    const inputId = target.getAttribute("data-target");
+    const input = inputId ? document.getElementById(inputId) : null;
+    if (!input) return;
+    input.type = target.checked ? "text" : "password";
+  },
+  moveMenu: (target) => {
+    const menuId = target.getAttribute("data-menu");
+    const dir = target.getAttribute("data-dir");
+    if (menuId && dir) moveAdminMenu(menuId, dir);
+  },
+  moveSubmenu: (target) => {
+    const menuId = target.getAttribute("data-menu");
+    const submenuId = target.getAttribute("data-submenu");
+    const dir = target.getAttribute("data-dir");
+    if (menuId && submenuId && dir) moveAdminSubmenu(menuId, submenuId, dir);
+  },
+  toggleMenuPreview: (target) => {
+    const menuId = target.getAttribute("data-menu");
+    if (menuId) toggleAdminMenuPreview(menuId);
+  },
+  toggleSubmenuPreview: (target) => {
+    const menuId = target.getAttribute("data-menu");
+    const submenuId = target.getAttribute("data-submenu");
+    if (menuId && submenuId) toggleAdminSubmenuPreview(menuId, submenuId);
+  },
+  deleteAdmin: (target) => {
+    const userId = target.getAttribute("data-user");
+    if (userId) deleteAdmin(userId);
   },
 };
 
@@ -238,16 +366,23 @@ function renderApp() {
     return;
   }
 
-  if (route === "/admin") {
-    const currentUser = getCurrentUser();
-    if (!currentUser || currentUser.role !== "superadmin") {
-      navigate("/discover");
-      return;
-    }
+  const currentUser = getCurrentUser();
+  const requires = {
+    "/users": "users.view",
+    "/matches-manage": "matches.manage",
+    "/content-moderate": "content.moderate",
+    "/reports": "reports.view",
+    "/settings": "settings.manage",
+    "/admin": "admins.manage",
+  };
+  const requiredPerm = requires[route];
+  if (requiredPerm && !hasPermission(currentUser, requiredPerm)) {
+    navigate("/discover");
+    return;
   }
 
   const pageRenderer = pages[route] || homePage;
-  const content = pageRenderer(state, params, getCurrentUser());
+  const content = pageRenderer(state, params, currentUser);
   const root = document.getElementById(appRootId);
   if (!root) return;
 
@@ -272,12 +407,35 @@ function bindEvents() {
     if (handler) handler(form);
   });
 
-  document.addEventListener("change", (event) => {
-    const actionEl = event.target.closest("[data-action]");
-    if (!actionEl) return;
-    const action = actionEl.getAttribute("data-action");
-    const handler = clickHandlers[action];
-    if (handler) handler(actionEl);
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".dropdown")) {
+      document.querySelectorAll(".dropdown.open").forEach((el) => el.classList.remove("open"));
+    }
+  });
+
+  document.addEventListener("mouseover", (event) => {
+    const dropdown = event.target.closest(".dropdown");
+    if (!dropdown) return;
+    dropdown.classList.add("open");
+  });
+
+  document.addEventListener("mouseout", (event) => {
+    const dropdown = event.target.closest(".dropdown");
+    if (!dropdown) return;
+    dropdown.classList.remove("open");
+  });
+
+  document.addEventListener("mouseover", (event) => {
+    const select = event.target.closest("select");
+    if (!select) return;
+    const optionCount = select.options.length;
+    select.size = Math.min(optionCount, 8);
+  });
+
+  document.addEventListener("mouseout", (event) => {
+    const select = event.target.closest("select");
+    if (!select) return;
+    select.size = 1;
   });
 }
 
