@@ -11,7 +11,8 @@
   --radius-lg: 28px;
   --radius-md: 18px;
   --radius-sm: 12px;
-  --max-width: 1280px;
+  --max-width: 1680px;
+  --page-padding: clamp(20px, 3.2vw, 56px);
   --font-head: "Space Grotesk", "Poppins", sans-serif;
   --font-body: "Manrope", "Arial", sans-serif;
 }
@@ -27,6 +28,31 @@ body {
   color: var(--text);
   background: radial-gradient(circle at top, #fff8f2 0%, var(--bg) 55%, #f3efe9 100%);
   min-height: 100vh;
+}
+
+body[data-compact="true"] .panel {
+  padding: 20px;
+}
+
+body[data-compact="true"] .main {
+  padding-bottom: 32px;
+}
+
+body[data-large-text="true"] {
+  font-size: 17px;
+}
+
+body[data-theme="dark"] {
+  --bg: #121212;
+  --bg-soft: #1b1b1b;
+  --text: #f2f2f2;
+  --muted: #b0b0b0;
+  --panel: #1a1a1a;
+  --accent: #ff6b6b;
+  --accent-dark: #ff8a80;
+  --accent-soft: rgba(255, 107, 107, 0.2);
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  background: radial-gradient(circle at top, #1c1c1c 0%, #121212 55%, #0f0f0f 100%);
 }
 
 button,

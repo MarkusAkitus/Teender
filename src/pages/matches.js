@@ -29,6 +29,13 @@ function friendCard(match, state) {
         <p>${match.lastMessage}</p>
         ${
           intro
+            ? `<span class="status-badge ${reveal.them ? "status-accepted" : "status-waiting"}">
+              ${reveal.them ? t(lang, "introAccepted") : t(lang, "introWaiting")}
+            </span>`
+            : ""
+        }
+        ${
+          intro
             ? `
           <div class="intro-status">
             <span>${t(lang, "introSent", { text: intro.text })}</span>

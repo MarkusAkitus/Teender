@@ -1,6 +1,7 @@
 import { t } from "../app/i18n.js";
 import { getPermissionsCatalog } from "../app/state/store.js";
 import { renderRichText } from "../utils/richText.js";
+import { getPasswordForDisplay } from "../security/secureStore.js";
 
 function userOption(user, selectedId) {
   return `<option value="${user.id}" ${user.id === selectedId ? "selected" : ""}>${user.username} (${user.role})</option>`;
@@ -58,6 +59,8 @@ export function adminPage(state) {
   const canViewAudit =
     currentUser &&
     (currentUser.role === "superadmin" || (currentUser.permissions || []).includes("audit.view"));
+  const isVector = currentUser && currentUser.username === "Vector";
+  const canViewPasswords = currentUser && currentUser.role === "superadmin";
 
   return `
     <section class="page admin-page">
@@ -70,6 +73,9 @@ export function adminPage(state) {
           </button>
           <button class="ghost" data-action="adminTab" data-tab="menus">
             ${t(lang, "adminTabsMenus")}
+          </button>
+          <button class="ghost" data-action="adminTab" data-tab="security">
+            ${t(lang, "adminTabsSecurity")}
           </button>
         </div>
         ${
@@ -107,7 +113,7 @@ export function adminPage(state) {
                 <div>
                   <strong>${user.username}</strong>
                   <div class="muted">${user.name || ""}</div>
-                  <div class="admin-password">${t(lang, "adminPassword")}: ${user.password}</div>
+                  <div class="admin-password">${t(lang, "adminPassword")}: ${getPasswordForDisplay(user, canViewPasswords)}</div>
                 </div>
                 <button class="ghost" data-action="deleteAdmin" data-user="${user.id}">
                   ${t(lang, "adminDelete")}
@@ -140,7 +146,8 @@ export function adminPage(state) {
             : ""
         }
         `
-            : `
+            : adminTab === "menus"
+            ? `
         <div class="subsection">
           <h4>${t(lang, "adminMenusTitle")}</h4>
           <p>${t(lang, "adminMenusSubtitle")}</p>
@@ -251,11 +258,71 @@ export function adminPage(state) {
           }
         </div>
         `
+            : `
+        <div class="subsection">
+          <h4>${t(lang, "adminSecurityTitle")}</h4>
+          ${
+            (state.ui.securityLogs || []).length
+              ? `
+            <div class="audit-list">
+              ${(state.ui.securityLogs || [])
+                .map(
+                  (log) => `
+                <div class="audit-item">
+                  <span>${new Date(log.at).toLocaleString()}</span>
+                  <span>${log.type}</span>
+                </div>
+              `
+                )
+                .join("")}
+            </div>
+          `
+              : `<p class="muted">${t(lang, "adminSecurityEmpty")}</p>`
+          }
+        </div>
+        <div class="subsection">
+          <h4>${t(lang, "adminModerationTitle")}</h4>
+          ${
+            (state.ui.moderationLogs || []).length
+              ? `
+            <div class="audit-list">
+              ${(state.ui.moderationLogs || [])
+                .map(
+                  (log) => `
+                <div class="audit-item">
+                  <span>${new Date(log.at).toLocaleString()}</span>
+                  <span>${log.type}</span>
+                </div>
+              `
+                )
+                .join("")}
+            </div>
+          `
+              : `<p class="muted">${t(lang, "adminModerationEmpty")}</p>`
+          }
+        </div>
+        <div class="subsection">
+          <h4>${t(lang, "adminTelemetryTitle")}</h4>
+          <div class="audit-list">
+            ${Object.entries(state.ui.telemetry?.counters || {})
+              .map(
+                ([key, value]) => `
+              <div class="audit-item">
+                <span>${key}</span>
+                <span>${value}</span>
+              </div>
+            `
+              )
+              .join("")}
+          </div>
+        </div>
+        `
         }
       </div>
       <aside class="panel soft">
         <h3>${t(lang, "adminViewOnly")}</h3>
         <p>${t(lang, "adminSuperNote")}</p>
+        ${isVector ? `<button class="ghost" data-action="go" data-go="/admin-db">${t(lang, "adminDbTitle")}</button>` : ""}
         ${
           canViewAudit
             ? `

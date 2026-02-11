@@ -2,7 +2,11 @@ export function profileCard(profile) {
   return `
     <article class="card">
       <div class="card-media" style="background: ${profile.color}">
-        <span class="card-initials">${profile.name.slice(0, 1)}</span>
+        ${
+          profile.avatarUrl
+            ? `<img class="card-avatar" src="${profile.avatarUrl}" alt="${profile.name}" />`
+            : `<span class="card-initials">${profile.name.slice(0, 1)}</span>`
+        }
       </div>
       <div class="card-body">
         <h3>${profile.name}, ${profile.age}</h3>

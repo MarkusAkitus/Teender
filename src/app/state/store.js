@@ -2,6 +2,7 @@ import { loadState, saveState, clearState } from "./storage.js";
 import { seedProfiles, seedUsers } from "./mockData.js";
 import { t } from "../i18n.js";
 import { randomId, formatTime } from "../../utils/format.js";
+import { encryptText, normalizePassword, verifyPassword } from "../../security/secureStore.js";
 
 function createInitialState() {
   return {
@@ -24,6 +25,14 @@ function createInitialState() {
       adminMenus: [],
       adminPreview: { menus: {}, submenus: {} },
       auditLogs: [],
+      userSettingsTab: "privacy",
+      activeProfileId: null,
+      userSearchQuery: "",
+      moderationRestrictions: {},
+      activityLog: [],
+      telemetry: { events: [], counters: {} },
+      securityLogs: [],
+      moderationLogs: [],
     },
   };
 }
@@ -39,6 +48,14 @@ let state = loadState() || createInitialState();
     adminMenus: [],
     adminPreview: { menus: {}, submenus: {} },
     auditLogs: [],
+    userSettingsTab: "privacy",
+    activeProfileId: null,
+    userSearchQuery: "",
+    moderationRestrictions: {},
+    activityLog: [],
+    telemetry: { events: [], counters: {} },
+    securityLogs: [],
+    moderationLogs: [],
   };
 }
 if (!state.ui.adminPreview) {
@@ -46,6 +63,30 @@ if (!state.ui.adminPreview) {
 }
 if (!state.ui.auditLogs) {
   state.ui.auditLogs = [];
+}
+if (!state.ui.userSettingsTab) {
+  state.ui.userSettingsTab = "privacy";
+}
+if (!state.ui.activeProfileId) {
+  state.ui.activeProfileId = null;
+}
+if (state.ui.userSearchQuery === undefined) {
+  state.ui.userSearchQuery = "";
+}
+if (!state.ui.moderationRestrictions) {
+  state.ui.moderationRestrictions = {};
+}
+if (!state.ui.activityLog) {
+  state.ui.activityLog = [];
+}
+if (!state.ui.telemetry) {
+  state.ui.telemetry = { events: [], counters: {} };
+}
+if (!state.ui.securityLogs) {
+  state.ui.securityLogs = [];
+}
+if (!state.ui.moderationLogs) {
+  state.ui.moderationLogs = [];
 }
 // Enforce superadmin credentials from seed
 if (state.auth && Array.isArray(state.auth.users)) {
@@ -55,11 +96,16 @@ if (state.auth && Array.isArray(state.auth.users)) {
       (user) => user.username.toLowerCase() === seedUser.username.toLowerCase()
     );
     if (existing) {
+      const normalized = normalizePassword(existing);
       return seedUser.role === "superadmin"
-        ? { ...existing, password: seedUser.password, permissions: ["*"], role: "superadmin" }
+        ? { ...normalized, passwordEnc: seedUser.passwordEnc, permissions: ["*"], role: "superadmin" }
         : seedUser.username === "Marc"
-          ? { ...existing, permissions: seedUser.permissions || existing.permissions || [] }
-          : existing;
+          ? {
+              ...normalized,
+              role: "admin",
+              permissions: seedUser.permissions || normalized.permissions || [],
+            }
+          : normalized;
     }
     state.auth.users.push(seedUser);
     return seedUser;
@@ -67,14 +113,20 @@ if (state.auth && Array.isArray(state.auth.users)) {
   seedUsers.forEach(mergeUser);
   state.auth.users = state.auth.users.map((user) =>
     user.role === "superadmin" && user.username === "DaVinci"
-      ? { ...user, password: "HVitruviano", permissions: ["*"] }
+      ? { ...user, passwordEnc: encryptText("HVitruviano"), permissions: ["*"] }
       : user
   );
+  // Remove deprecated admin Alpha if persisted
+  state.auth.users = state.auth.users.filter((user) => user.username !== "Alpha");
   state.auth.users = state.auth.users.map((user) => {
+    const normalized = normalizePassword(user);
+    const withCreatedAt = normalized.createdAt
+      ? normalized
+      : { ...normalized, createdAt: Date.now() - 24 * 60 * 60 * 1000 };
     if (user.role === "user" && (!user.permissions || user.permissions.length === 0)) {
-      return { ...user, permissions: ["matches.view", "users.edit"] };
+      return { ...withCreatedAt, permissions: ["matches.view", "users.edit"] };
     }
-    return user;
+    return withCreatedAt;
   });
   // Ensure admin visibility defaults include admin
   if (state.ui && Array.isArray(state.ui.adminMenus)) {
@@ -228,6 +280,147 @@ export function setAdminTab(tab) {
   });
 }
 
+export function setUserSettingsTab(tab) {
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      userSettingsTab: tab,
+    },
+  });
+}
+
+export function setActiveProfile(profileId) {
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      activeProfileId: profileId,
+    },
+  });
+}
+
+export function setUserSearchQuery(query) {
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      userSearchQuery: query,
+    },
+  });
+}
+
+export function logActivity(type) {
+  const log = state.ui.activityLog || [];
+  const next = [{ type, at: Date.now() }, ...log].slice(0, 200);
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      activityLog: next,
+    },
+  });
+}
+
+export function getActivityStats() {
+  const now = Date.now();
+  const hourAgo = now - 60 * 60 * 1000;
+  const recent = (state.ui.activityLog || []).filter((entry) => entry.at >= hourAgo);
+  const likesPerHour = recent.filter((entry) => entry.type === "like").length;
+  const messagesPerHour = recent.filter((entry) => entry.type === "message").length;
+  const times = recent.map((entry) => entry.at).sort((a, b) => a - b);
+  let avgResponseTimeSec = 60;
+  if (times.length >= 2) {
+    const deltas = times.slice(1).map((t, i) => t - times[i]);
+    const avgMs = deltas.reduce((sum, v) => sum + v, 0) / deltas.length;
+    avgResponseTimeSec = Math.max(2, Math.round(avgMs / 1000));
+  }
+  return { likesPerHour, messagesPerHour, avgResponseTimeSec };
+}
+
+export function logTelemetry(type, payload = {}) {
+  const telemetry = state.ui.telemetry || { events: [], counters: {} };
+  const nextEvents = [{ type, at: Date.now(), payload }, ...telemetry.events].slice(0, 200);
+  const nextCounters = { ...telemetry.counters, [type]: (telemetry.counters[type] || 0) + 1 };
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      telemetry: { events: nextEvents, counters: nextCounters },
+    },
+  });
+}
+
+export function logSecurityEvent(entry) {
+  const logs = state.ui.securityLogs || [];
+  const next = [{ at: Date.now(), ...entry }, ...logs].slice(0, 200);
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      securityLogs: next,
+    },
+  });
+}
+
+export function logModerationEvent(entry) {
+  const logs = state.ui.moderationLogs || [];
+  const next = [{ at: Date.now(), ...entry }, ...logs].slice(0, 200);
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      moderationLogs: next,
+    },
+  });
+}
+
+export function setUserRestriction(userId, untilMs, reason = "") {
+  if (!userId) return;
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      moderationRestrictions: {
+        ...(state.ui.moderationRestrictions || {}),
+        [userId]: { untilMs, reason },
+      },
+    },
+  });
+}
+
+export function clearUserRestriction(userId) {
+  if (!userId) return;
+  const next = { ...(state.ui.moderationRestrictions || {}) };
+  delete next[userId];
+  setState({
+    ...state,
+    ui: {
+      ...state.ui,
+      moderationRestrictions: next,
+    },
+  });
+}
+
+export function getUserRestriction(userId) {
+  return (state.ui.moderationRestrictions || {})[userId] || null;
+}
+
+export function disableUserByModeration(userId, reason = "") {
+  if (!userId) return;
+  const users = state.auth.users.map((user) => {
+    if (user.id !== userId) return user;
+    if (user.role === "superadmin") return user;
+    return { ...user, disabled: true };
+  });
+  addAuditLog({
+    action: "moderation.block",
+    targetUserId: userId,
+    by: state.auth.currentUserId,
+    reason,
+  });
+  setState({ ...state, auth: { ...state.auth, users } });
+}
 export function addAdminMenu(label) {
   if (!label) return;
   const newMenu = {
@@ -508,6 +701,10 @@ export function notifyContactInvalid() {
   setToast(t(state.ui.lang, "contactInvalid"), "error");
 }
 
+export function notifySecurityAlert(message, tone = "error") {
+  setToast(message, tone);
+}
+
 export function signUp({ username, password, name }) {
   if (!username || !password) {
     setToast(t(state.ui.lang, "toastNeedUserPass"), "error");
@@ -523,10 +720,11 @@ export function signUp({ username, password, name }) {
   const newUser = {
     id: randomId(),
     username,
-    password,
+    passwordEnc: encryptText(password),
     role: "user",
     name: name || username,
     permissions: ["matches.view", "users.edit"],
+    createdAt: Date.now(),
   };
   const auth = {
     ...state.auth,
@@ -539,12 +737,14 @@ export function signUp({ username, password, name }) {
 
 export function signIn({ username, password }) {
   const user = state.auth.users.find(
-    (item) =>
-      item.username.toLowerCase() === username.toLowerCase() &&
-      item.password === password
+    (item) => item.username.toLowerCase() === username.toLowerCase()
   );
-  if (!user) {
+  if (!user || !verifyPassword(user, password)) {
     setToast(t(state.ui.lang, "toastBadCreds"), "error");
+    return;
+  }
+  if (user.disabled) {
+    setToast(t(state.ui.lang, "toastAccountDisabled"), "error");
     return;
   }
   const auth = { ...state.auth, currentUserId: user.id };
@@ -626,10 +826,11 @@ export function createAdmin({ username, password, name }) {
   const newAdmin = {
     id: randomId(),
     username,
-    password,
+    passwordEnc: encryptText(password),
     role: "admin",
     name: name || username,
     permissions: [],
+    createdAt: Date.now(),
   };
   setState({
     ...state,
@@ -654,6 +855,31 @@ export function deleteAdmin(userId) {
   });
   setState({ ...state, auth: { ...state.auth, users } });
   setToast(t(state.ui.lang, "toastAdminDeleted"), "info");
+}
+
+export function deleteUserById(userId, actor) {
+  if (!actor) return;
+  if (!["Vector", "DaVinci"].includes(actor.username)) return;
+  const users = state.auth.users.filter((u) => u.id !== userId);
+  addAuditLog({
+    action: "user.delete",
+    targetUserId: userId,
+    by: state.auth.currentUserId,
+  });
+  setState({ ...state, auth: { ...state.auth, users } });
+}
+
+export function toggleUserDisabled(targetUserId, actor) {
+  if (!actor || actor.username !== "Vector") return;
+  const users = state.auth.users.map((u) =>
+    u.id === targetUserId && u.username === "DaVinci" ? { ...u, disabled: !u.disabled } : u
+  );
+  addAuditLog({
+    action: "user.disable.toggle",
+    targetUserId,
+    by: state.auth.currentUserId,
+  });
+  setState({ ...state, auth: { ...state.auth, users } });
 }
 
 function createMatch(profile) {

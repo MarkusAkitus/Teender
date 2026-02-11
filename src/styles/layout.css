@@ -8,18 +8,18 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 28px 48px;
-  max-width: var(--max-width);
+  padding: 28px var(--page-padding);
+  max-width: min(var(--max-width), 96vw);
   margin: 0 auto;
-  width: 100%;
+  width: min(96vw, var(--max-width));
 }
 
 .main {
   flex: 1;
-  max-width: var(--max-width);
+  max-width: min(var(--max-width), 96vw);
   margin: 0 auto;
-  width: 100%;
-  padding: 0 48px 48px;
+  width: min(96vw, var(--max-width));
+  padding: 0 var(--page-padding) 56px;
 }
 
 .page {
@@ -53,11 +53,11 @@
   .topbar {
     flex-direction: column;
     gap: 16px;
-    padding: 24px;
+    padding: 24px var(--page-padding);
   }
 
   .main {
-    padding: 0 24px 36px;
+    padding: 0 var(--page-padding) 36px;
   }
 
   .page,

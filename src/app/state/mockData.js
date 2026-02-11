@@ -1,4 +1,18 @@
+import { encryptText } from "../../security/secureStore.js";
+
 export const seedProfiles = [
+  {
+    id: "p0",
+    name: "Marc",
+    age: 16,
+    city: "Barcelona",
+    bio: "Me gusta el diseño de apps y conocer gente creativa.",
+    interests: ["diseno", "apps", "musica"],
+    vibe: "Curioso",
+    color: "linear-gradient(135deg, #90caf9, #64b5f6)",
+    avatarUrl: "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=300&q=80",
+    contact: { email: "marc@mail.com", instagram: "@marc" },
+  },
   {
     id: "p1",
     name: "Alex",
@@ -8,6 +22,7 @@ export const seedProfiles = [
     interests: ["skate", "arte", "musica", "memes"],
     vibe: "Creativo",
     color: "linear-gradient(135deg, #ff8a65, #ffb74d)",
+    avatarUrl: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&q=80",
     contact: { email: "alex@mail.com", instagram: "@alex.skate" },
   },
   {
@@ -19,6 +34,7 @@ export const seedProfiles = [
     interests: ["deporte", "series", "foto"],
     vibe: "Energetica",
     color: "linear-gradient(135deg, #4dd0e1, #4fc3f7)",
+    avatarUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80",
     contact: { email: "lia@mail.com", instagram: "@lia.vibes" },
   },
   {
@@ -30,6 +46,7 @@ export const seedProfiles = [
     interests: ["gaming", "edits", "stream"],
     vibe: "Competitivo",
     color: "linear-gradient(135deg, #7986cb, #9575cd)",
+    avatarUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80",
     contact: { email: "nico@mail.com", instagram: "@nico.esports" },
   },
   {
@@ -41,6 +58,7 @@ export const seedProfiles = [
     interests: ["lectura", "podcast", "escritura"],
     vibe: "Calmada",
     color: "linear-gradient(135deg, #81c784, #aed581)",
+    avatarUrl: "https://images.unsplash.com/photo-1544723795-3fb6469f5b39?auto=format&fit=crop&w=300&q=80",
     contact: { email: "aina@mail.com", instagram: "@aina.escribe" },
   },
   {
@@ -52,6 +70,7 @@ export const seedProfiles = [
     interests: ["musica", "guitarra", "indie"],
     vibe: "Artistico",
     color: "linear-gradient(135deg, #ffb74d, #ffd54f)",
+    avatarUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=300&q=80",
     contact: { email: "sam@mail.com", instagram: "@sam.indie" },
   },
   {
@@ -63,6 +82,7 @@ export const seedProfiles = [
     interests: ["cine", "reviews", "maraton"],
     vibe: "Curiosa",
     color: "linear-gradient(135deg, #ba68c8, #f06292)",
+    avatarUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80",
     contact: { email: "iris@mail.com", instagram: "@iris.cine" },
   },
   {
@@ -74,6 +94,7 @@ export const seedProfiles = [
     interests: ["basket", "reto", "tiktok"],
     vibe: "Divertido",
     color: "linear-gradient(135deg, #4db6ac, #80cbc4)",
+    avatarUrl: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&q=80",
     contact: { email: "leo@mail.com", instagram: "@leo.basket" },
   },
   {
@@ -85,6 +106,7 @@ export const seedProfiles = [
     interests: ["debate", "voluntariado", "pizza"],
     vibe: "Social",
     color: "linear-gradient(135deg, #f48fb1, #f8bbd0)",
+    avatarUrl: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=300&q=80",
     contact: { email: "rocio@mail.com", instagram: "@rocio.debate" },
   },
 ];
@@ -93,31 +115,25 @@ export const seedUsers = [
   {
     id: "admin-1",
     username: "DaVinci",
-    password: "HVitruviano",
+    passwordEnc: encryptText("HVitruviano"),
     role: "superadmin",
-    name: "Super Admin",
+    level: "director",
+    name: "DaVinci",
     permissions: ["*"],
   },
   {
     id: "admin-3",
     username: "Vector",
-    password: "Victor.20101105",
+    passwordEnc: encryptText("Victor.20101105"),
     role: "superadmin",
+    level: "master",
     name: "Vector",
     permissions: ["*"],
   },
   {
-    id: "admin-2",
-    username: "Alpha",
-    password: "1234",
-    role: "admin",
-    name: "Alpha",
-    permissions: [],
-  },
-  {
     id: "admin-4",
     username: "Marc",
-    password: "Marc1701#",
+    passwordEnc: encryptText("Marc1701#"),
     role: "admin",
     name: "Marc",
     permissions: ["users.view", "users.edit", "matches.view", "settings.manage"],

@@ -23,6 +23,10 @@ export function profilePage(state) {
             <input name="avatarUrl" type="text" placeholder="https://..." value="${me.avatarUrl || ""}" />
           </label>
           <label>
+            ${t(lang, "profileAvatarUpload")}
+            <input type="file" accept="image/*" data-action="avatarUpload" />
+          </label>
+          <label>
             ${t(lang, "signInUser")}
             <input name="username" type="text" value="${me.username || ""}" />
           </label>
